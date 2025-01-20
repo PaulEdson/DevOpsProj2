@@ -8,6 +8,7 @@ export class ApiService {
     getMessage() {
         return this.http.get(
             //'http://localhost:3000/string-data/1');
-            'http://localhost:3000');
+            'http://localhost:3000'
+            );
     }
 }

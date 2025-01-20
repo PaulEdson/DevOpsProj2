@@ -223,7 +223,7 @@ resource "aws_instance" "app_server" {
     inline = [
       "sudo mkdir -m777 paul",
       "cd paul",
-      "mkdir edson"
+      "sudo mkdir -m777 edson"
         # "sudo rm -rf /tmp",
         # "sudo git clone https://github.com/hashicorp/demo-terraform-101 /tmp",
         # "sudo sh /tmp/assets/setup-web.sh"
@@ -232,5 +232,43 @@ resource "aws_instance" "app_server" {
   tags = {
     Name = "app-server-pje"
     BatchID = "DevOps"
+  }
+}
+
+
+#----------------S3---------------
+resource "aws_s3_bucket" "s3-bucket" {
+  bucket = "angular-frontend-pje"
+  tags = {
+    Name = "angular-frontend-pje"
+    BatchID = "DevOps"
+  }
+}
+
+resource "aws_s3_bucket_ownership_controls" "ownership_controls" {
+  bucket = aws_s3_bucket.s3-bucket.id
+  rule{
+    object_ownership = "BucketOwnerPreferred"
+  }
+}
+
+resource "aws_s3_bucket_website_configuration" "example" {
+  bucket = aws_s3_bucket.s3-bucket.id
+
+  index_document {
+    suffix = "index.html"
+  }
+
+  error_document {
+    key = "error.html"
+  }
+
+  routing_rule {
+    condition {
+      key_prefix_equals = "docs/"
+    }
+    redirect {
+      replace_key_prefix_with = "documents/"
+    }
   }
 }
