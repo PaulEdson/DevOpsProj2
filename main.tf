@@ -133,7 +133,7 @@ resource "aws_route_table_association" "private_routes" {
     subnet_id = each.value.id
 }
 
-#Security Groups example
+#open security group
 resource "aws_security_group" "terraform_sg" {
   name        = "terraform_sg"
   description = "Allow all inbound and outbound traffic"
@@ -151,6 +151,14 @@ resource "aws_vpc_security_group_ingress_rule" "allow_tls_ipv4" {
   from_port         = 443
   ip_protocol       = "tcp"
   to_port           = 443
+}
+
+resource "aws_vpc_security_group_ingress_rule" "allow_custom_port" {
+  security_group_id = aws_security_group.terraform_sg.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = 3000
+  ip_protocol       = "tcp"
+  to_port           = 3000
 }
 
 resource "aws_vpc_security_group_ingress_rule" "allow_http_ipv4" {
@@ -204,6 +212,25 @@ resource "aws_instance" "app_server" {
   vpc_security_group_ids = [aws_security_group.terraform_sg.id]
   associate_public_ip_address = "true"
   key_name = aws_key_pair.public_key.key_name
+  user_data = <<-EOL
+  #!/bin/bash -xe
+
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+  export NVM_DIR="$HOME/.nvm"
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  nvm install --lts
+  node -e "console.log('Running Node.js ' + process.version)"
+  sudo yum install git -y
+  git clone --no-checkout https://github.com/PaulEdson/DevOpsProj2
+  cd ./DevOpsProj2
+  git sparse-checkout init
+  git sparse-checkout set backend
+  git checkout master
+  cd backend
+  npm install
+  npm run start
+
+  EOL
   connection {
     user = "ec2-user"
     private_key = tls_private_key.rsa4096.private_key_pem
@@ -289,7 +316,7 @@ resource "aws_s3_bucket_policy" "allow_access_from_another_account" {
 }
 
 
-#--------------------------project frontend-----------------------
+#--------------------------project frontend files-----------------------
 resource "aws_s3_object" "index" {
   bucket = aws_s3_bucket.s3-bucket.id
   key    = "index.html"

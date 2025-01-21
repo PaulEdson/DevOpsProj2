@@ -6,6 +6,6 @@ export class AppService {
     return '{"stringId":1,"stringValue":"data in devops-proj2 database"}';
   }
   getData(): string {
-    return 
+    return '{"stringId":2,"stringValue":"I am also in the database"}'
   }
 }
