@@ -199,7 +199,7 @@ resource "aws_key_pair" "public_key" {
 
 resource "aws_instance" "app_server" {
   ami           = "ami-05576a079321f21f8"
-  instance_type = "t2.micro"
+  instance_type = "t3.small"
   subnet_id = aws_subnet.public_subnets["public_subnet_1"].id
   vpc_security_group_ids = [aws_security_group.terraform_sg.id]
   associate_public_ip_address = "true"
@@ -238,9 +238,9 @@ resource "aws_instance" "app_server" {
 
 #----------------S3---------------
 resource "aws_s3_bucket" "s3-bucket" {
-  bucket = "angular-frontend-pje"
+  bucket = "frontend-pje"
   tags = {
-    Name = "angular-frontend-pje"
+    Name = "1519948-pje"
     BatchID = "DevOps"
   }
 }
@@ -248,7 +248,7 @@ resource "aws_s3_bucket" "s3-bucket" {
 resource "aws_s3_bucket_ownership_controls" "ownership_controls" {
   bucket = aws_s3_bucket.s3-bucket.id
   rule{
-    object_ownership = "BucketOwnerPreferred"
+    object_ownership = "BucketOwnerEnforced"
   }
 }
 
@@ -271,4 +271,56 @@ resource "aws_s3_bucket_website_configuration" "example" {
       replace_key_prefix_with = "documents/"
     }
   }
+}
+
+resource "aws_s3_bucket_public_access_block" "example" {
+  bucket = aws_s3_bucket.s3-bucket.id
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+resource "aws_s3_bucket_policy" "allow_access_from_another_account" {
+  depends_on = [ aws_s3_bucket_public_access_block.example ]
+  bucket = aws_s3_bucket.s3-bucket.id
+  policy = data.aws_iam_policy_document.allow_access_from_another_account.json
+}
+
+
+#--------------------------project frontend-----------------------
+resource "aws_s3_object" "index" {
+  bucket = aws_s3_bucket.s3-bucket.id
+  key    = "index.html"
+  source = "d:/Code/DevOpsProj2/frontend/dist/frontend/browser/index.html"
+  content_type = "text/html"
+}
+
+resource "aws_s3_object" "main" {
+  bucket = aws_s3_bucket.s3-bucket.id
+  key    = "main-N47QPY44.js"
+  source = "d:/Code/DevOpsProj2/frontend/dist/frontend/browser/main-N47QPY44.js"
+  content_type = "application/javascript"
+}
+
+resource "aws_s3_object" "polyfills" {
+  bucket = aws_s3_bucket.s3-bucket.id
+  key    = "polyfills-FFHMD2TL.js"
+  source = "d:/Code/DevOpsProj2/frontend/dist/frontend/browser/polyfills-FFHMD2TL.js"
+  content_type = "application/javascript"
+}
+
+resource "aws_s3_object" "styles" {
+  bucket = aws_s3_bucket.s3-bucket.id
+  key    = "styles-5INURTSO.css"
+  source = "d:/Code/DevOpsProj2/frontend/dist/frontend/browser/styles-5INURTSO.css"
+  content_type = "text/html"
+}
+
+resource "aws_s3_object" "icon" {
+  bucket = aws_s3_bucket.s3-bucket.id
+  key    = "favicon.ico"
+  source = "d:/Code/DevOpsProj2/frontend/dist/frontend/browser/favicon.ico"
+  content_type = "image/x-icon"
 }
