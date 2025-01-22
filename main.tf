@@ -262,8 +262,70 @@ resource "aws_instance" "app_server" {
   }
 }
 
+#--------------------Load-Balancer------------------------------
+resource "aws_lb" "server_lb" {
+  name               = "proj2-lb-pje"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.terraform_sg.id]
+  subnets            = [for subnet in aws_subnet.public_subnets : subnet.id]
+
+  enable_deletion_protection = false
+
+  # access_logs {
+  #   bucket  = aws_s3_bucket.lb_logs.id
+  #   prefix  = "test-lb"
+  #   enabled = true
+  # }
+
+  tags = {
+    BatchID = "DevOps"
+  }
+}
+
+#target group that the ec2 servers will be assigned to
+resource "aws_lb_target_group" "server_lb_tg" {
+  name     = "proj2-lb-tg-pje"
+  port     = 3000
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.proj2-pje.id
+
+  tags = {
+    BatchID = "DevOps"
+  }
+}
+
+#target group attachment is required to point the created target group to specific instances
+resource "aws_lb_target_group_attachment" "server_1" {
+  target_group_arn = aws_lb_target_group.server_lb_tg.arn
+  target_id        = aws_instance.app_server.id #just one instance as of now, easily scalable
+  port             = 3000
+}
+
+#takes http traffic and forwards to the server target group
+resource "aws_lb_listener" "server_1_listener" {
+  load_balancer_arn = aws_lb.server_lb.arn
+  port              = "80"
+  protocol          = "HTTP"
+  #ssl_policy        = "ELBSecurityPolicy-2016-08"
+  #certificate_arn   = "arn:aws:iam::187416307283:server-certificate/test_cert_rab3wuqwgja25ct3n4jdj2tzu4"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.server_lb_tg.arn
+  }
+}
+
+#creates local file with balance dns to be uploaded to the s3 bucket and read by frontend app
+#needed for app to find newly created api and access backend data
+resource "local_file" "load_balancer_dns" {
+    content  = aws_lb.server_lb.dns_name
+    filename = "public_lb_dns.txt"
+}
+
 
 #----------------S3---------------
+#frontend will be served through this public s3 bucket
 resource "aws_s3_bucket" "s3-bucket" {
   bucket = "frontend-pje"
   tags = {
@@ -279,17 +341,20 @@ resource "aws_s3_bucket_ownership_controls" "ownership_controls" {
   }
 }
 
+#points to index of website to be served
 resource "aws_s3_bucket_website_configuration" "example" {
   bucket = aws_s3_bucket.s3-bucket.id
 
   index_document {
     suffix = "index.html"
   }
-
+  
+  #currently no error.html file, but might add later
   error_document {
     key = "error.html"
   }
 
+  #routes can go here, these are just an example
   routing_rule {
     condition {
       key_prefix_equals = "docs/"
@@ -300,6 +365,7 @@ resource "aws_s3_bucket_website_configuration" "example" {
   }
 }
 
+#bucket access policy is allowing all public access 
 resource "aws_s3_bucket_public_access_block" "example" {
   bucket = aws_s3_bucket.s3-bucket.id
 
@@ -309,6 +375,7 @@ resource "aws_s3_bucket_public_access_block" "example" {
   restrict_public_buckets = false
 }
 
+#assigning access block to our s3 bucket
 resource "aws_s3_bucket_policy" "allow_access_from_another_account" {
   depends_on = [ aws_s3_bucket_public_access_block.example ]
   bucket = aws_s3_bucket.s3-bucket.id
