@@ -393,8 +393,8 @@ resource "aws_s3_object" "index" {
 
 resource "aws_s3_object" "main" {
   bucket = aws_s3_bucket.s3-bucket.id
-  key    = "main-N47QPY44.js"
-  source = "d:/Code/DevOpsProj2/frontend/dist/frontend/browser/main-N47QPY44.js"
+  key    = "main-Q7PJTTDK.js"
+  source = "d:/Code/DevOpsProj2/frontend/dist/frontend/browser/main-Q7PJTTDK.js"
   content_type = "application/javascript"
 }
 
@@ -417,4 +417,12 @@ resource "aws_s3_object" "icon" {
   key    = "favicon.ico"
   source = "d:/Code/DevOpsProj2/frontend/dist/frontend/browser/favicon.ico"
   content_type = "image/x-icon"
+}
+
+resource "aws_s3_object" "url" {
+  depends_on = [local_file.load_balancer_dns]
+  bucket = aws_s3_bucket.s3-bucket.id
+  key    = "url.txt"
+  source = "d:/Code/DevOpsProj2/public_lb_dns.txt"
+  content_type = "text/html"
 }

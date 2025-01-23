@@ -5,10 +5,25 @@ import { HttpClient } from '@angular/common/http';
 })
 export class ApiService {
     constructor(private http: HttpClient) { }
-    getMessage() {
+    getMessage(url:any) {
+        
+        // this.http.get(' input.txt', { responseType: 'text'}).subscribe(data => {
+        //     this.url = data
+        //     return this.http.get(this.url)
+        // })
+        console.log("in get message", url)
         return this.http.get(
-            //'http://localhost:3000/string-data/1');
-            'http://44.212.67.195:3000/'
+            "http://"+url
+            //"http://localhost:3000"
             );
+            
+            
+    }
+
+    getUrl(){
+        // return this.http.get('input.txt', {responseType: 'text'}).toPromise();
+        // console.log(this.url)
+        // return this.url
+        return this.http.get('url.txt', {responseType: 'text'})
     }
 }
