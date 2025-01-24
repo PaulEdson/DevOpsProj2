@@ -177,6 +177,14 @@ resource "aws_vpc_security_group_ingress_rule" "allow_ssh_ipv4" {
   to_port           = 22
 }
 
+resource "aws_vpc_security_group_ingress_rule" "allow_sg_traffic" {
+  security_group_id = aws_security_group.terraform_sg.id
+  from_port         = 5432
+  ip_protocol       = "tcp"
+  to_port           = 5432
+  referenced_security_group_id = aws_security_group.terraform_sg.id
+}
+
 resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
   security_group_id = aws_security_group.terraform_sg.id
   cidr_ipv4         = "0.0.0.0/0"
@@ -425,4 +433,35 @@ resource "aws_s3_object" "url" {
   key    = "url.txt"
   source = "d:/Code/DevOpsProj2/public_lb_dns.txt"
   content_type = "text/html"
+}
+
+#-------------Database------------------------------
+
+resource "aws_db_subnet_group" "default" {
+  
+  name       = "db-subnet-pje" 
+  subnet_ids = values(aws_subnet.private_subnets)[*].id
+
+  tags = {
+    Name = "db-subnet-pje"
+    BatchID = "DevOps"
+  }
+}
+
+resource "aws_db_instance" "default" {
+  depends_on = [ aws_db_subnet_group.default ]
+  allocated_storage    = 10
+  db_name              = "private_db_pje"
+  engine               = "postgres"
+  engine_version       = "16.3"
+  instance_class       = "db.t3.micro"
+  username             = "postgres"
+  password             = "y1ew1Fx3W0QwwGSD8EyQ"
+  vpc_security_group_ids = [aws_security_group.terraform_sg.id]
+  db_subnet_group_name = aws_db_subnet_group.default.id
+  skip_final_snapshot  = true
+  publicly_accessible = false
+  tags = {
+    BatchID = "DevOps"
+  }
 }

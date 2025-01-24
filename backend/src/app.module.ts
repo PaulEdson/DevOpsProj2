@@ -20,7 +20,7 @@ const fs = require('fs')
       // database: process.env.DB_NAME,
       // ssl: Boolean(Number(0)),
       type: 'postgres',
-      host: 'private-db-pje.cohfrpt69poq.us-east-1.rds.amazonaws.com',
+      host: 'terraform-20250124222210682200000001.cohfrpt69poq.us-east-1.rds.amazonaws.com',
       port: 5432,
       username: 'postgres',
       password: 'y1ew1Fx3W0QwwGSD8EyQ',
