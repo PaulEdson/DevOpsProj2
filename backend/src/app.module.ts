@@ -7,23 +7,34 @@ import { stringdatum } from './string-data/entities/string-datum.entity'
 import { StringDataController } from './string-data/string-data.controller';
 import { StringDataService } from './string-data/string-data.service';
 import { ConfigModule } from '@nestjs/config';
+const fs = require('fs')
 @Module({
   imports: [
     ConfigModule.forRoot(),
-    // TypeOrmModule.forRoot({
-    //   type: 'postgres',
-    //   host: process.env.DATABASE_HOST,
-    //   port: Number(process.env.DATABASE_PORT),
-    //   username: process.env.DB_USER,
-    //   password: process.env.DB_PASSWORD,
-    //   database: process.env.DB_NAME,
-    //   ssl: Boolean(Number(0)),
-    //   synchronize: true, //if this is set to true, any changes made in the app will affect your schema
-    //   entities: [stringdatum],
-    // }),
-    // StringDataModule
+    TypeOrmModule.forRoot({
+      // type: 'postgres',
+      // host: process.env.DB_HOST,
+      // port: Number(process.env.DB_PORT),
+      // username: process.env.DB_USER,
+      // password: process.env.DB_PASSWORD,
+      // database: process.env.DB_NAME,
+      // ssl: Boolean(Number(0)),
+      type: 'postgres',
+      host: 'test-db-pje.cohfrpt69poq.us-east-1.rds.amazonaws.com',
+      port: 5432,
+      username: 'postgres',
+      password: '4FvvN0Qn2MZjzPgisVWO',
+      database: 'test_db_pje',
+      ssl: { 
+        rejectUnauthorized: true,
+        ca: fs.readFileSync('./us-east-1-bundle.pem').toString(), 
+      } ,
+      synchronize: true, //if this is set to true, any changes made in the app will affect your schema
+      entities: [stringdatum],
+    }),
+    StringDataModule
     ],
-  controllers: [AppController, /*StringDataController*/],
-  providers: [AppService, /*StringDataService*/],
+  controllers: [AppController, StringDataController],
+  providers: [AppService, StringDataService],
 })
 export class AppModule {}
