@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateStringDatumDto } from './dto/create-string-datum.dto';
 import { UpdateStringDatumDto } from './dto/update-string-datum.dto';
 import { stringdatum } from './entities/string-datum.entity';
@@ -7,8 +7,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 @Injectable()
 export class StringDataService {
   constructor(@InjectRepository(stringdatum) private repo: Repository<stringdatum>){}
-  create(createStringDatumDto: CreateStringDatumDto) {
-    return 'This action adds a new stringDatum';
+  // create(createStringDatumDto: CreateStringDatumDto) {
+  //   return 'This action adds a new stringDatum';
+  // }
+  async create(createStringDto: stringdatum): Promise<stringdatum> {
+    await this.repo.exists({where:{stringId: createStringDto.stringId}}).then(exists => {
+      if (exists){
+        throw new HttpException(`string ID ${createStringDto.stringId} already exists`, HttpStatus.BAD_REQUEST)
+      }
+    })
+    return await this.repo.save(createStringDto);
   }
 
   async findAll(): Promise<stringdatum[]> {

@@ -6,7 +6,7 @@ export class stringdatum {
     @PrimaryGeneratedColumn()
     stringId: number;
 
-    @Column({ unique: true })
+    @Column()
     stringValue: string;
 
 }

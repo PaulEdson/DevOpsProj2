@@ -9,8 +9,11 @@ export class StringDataController {
   constructor(private readonly stringDataService: StringDataService) {}
 
   @Post()
-  create(@Body() createStringDatumDto: CreateStringDatumDto) {
-    return this.stringDataService.create(createStringDatumDto);
+  // create(@Body() createStringDatumDto: CreateStringDatumDto) {
+  //   return this.stringDataService.create(createStringDatumDto);
+  // }
+  create(@Body() createStringDatum: stringdatum) {
+    return this.stringDataService.create(createStringDatum);
   }
 
   @Get()
