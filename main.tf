@@ -208,9 +208,9 @@ resource "aws_key_pair" "public_key" {
 resource "aws_instance" "app_server" {
   ami           = "ami-05576a079321f21f8"
   instance_type = "t3.small"
-  subnet_id = aws_subnet.public_subnets["public_subnet_1"].id
+  subnet_id = aws_subnet.private_subnets["private_subnet_1"].id
   vpc_security_group_ids = [aws_security_group.terraform_sg.id]
-  associate_public_ip_address = "true"
+  associate_public_ip_address = "false"
   key_name = aws_key_pair.public_key.key_name
   user_data = <<-EOL
   #!/bin/bash -xe
@@ -231,31 +231,31 @@ resource "aws_instance" "app_server" {
   npm run start
 
   EOL
-  connection {
-    user = "ec2-user"
-    private_key = tls_private_key.rsa4096.private_key_pem
-    host = self.public_ip
-  }
-  provisioner "local-exec" {
-    #commands to give permisions to private key for windows
-    command = "chmod 600 ${local_file.private_key_pem.filename}"
-    # inline = [
-    #     "icacls ${local_file.private_key_pem.filename} /grant %username%:rw",
-    #     "icacls ${local_file.private_key_pem.filename} /grant %username%:rw",
-    #     "icacls ${local_file.private_key_pem.filename} /remove *S-1-5-11 *S-1-5-18 *S-1-5-32-544 *S-1-5-32-545"
-    # ]
-  }
+#   connection {
+#     user = "ec2-user"
+#     private_key = tls_private_key.rsa4096.private_key_pem
+#     host = self.public_ip
+#   }
+#   provisioner "local-exec" {
+#     #commands to give permisions to private key for windows
+#     command = "chmod 600 ${local_file.private_key_pem.filename}"
+#     # inline = [
+#     #     "icacls ${local_file.private_key_pem.filename} /grant %username%:rw",
+#     #     "icacls ${local_file.private_key_pem.filename} /grant %username%:rw",
+#     #     "icacls ${local_file.private_key_pem.filename} /remove *S-1-5-11 *S-1-5-18 *S-1-5-32-544 *S-1-5-32-545"
+#     # ]
+#   }
 
-  provisioner "remote-exec" {
-    inline = [
-      "sudo mkdir -m777 paul",
-      "cd paul",
-      "sudo mkdir -m777 edson"
-        # "sudo rm -rf /tmp",
-        # "sudo git clone https://github.com/hashicorp/demo-terraform-101 /tmp",
-        # "sudo sh /tmp/assets/setup-web.sh"
-    ]
-}
+#   provisioner "remote-exec" {
+#     inline = [
+#       "sudo mkdir -m777 paul",
+#       "cd paul",
+#       "sudo mkdir -m777 edson"
+#         # "sudo rm -rf /tmp",
+#         # "sudo git clone https://github.com/hashicorp/demo-terraform-101 /tmp",
+#         # "sudo sh /tmp/assets/setup-web.sh"
+#     ]
+# }
   tags = {
     Name = "app-server-pje"
     BatchID = "DevOps"
