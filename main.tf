@@ -402,8 +402,8 @@ resource "aws_s3_object" "index" {
 
 resource "aws_s3_object" "main" {
   bucket = aws_s3_bucket.s3-bucket.id
-  key    = "main-Q7PJTTDK.js"
-  source = "d:/Code/DevOpsProj2/frontend/dist/frontend/browser/main-Q7PJTTDK.js"
+  key    = "main-2Z4MT3N2.js"
+  source = "d:/Code/DevOpsProj2/frontend/dist/frontend/browser/main-2Z4MT3N2.js"
   content_type = "application/javascript"
 }
 
