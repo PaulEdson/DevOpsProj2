@@ -216,9 +216,9 @@ resource "aws_key_pair" "public_key" {
 resource "aws_instance" "app_server" {
   ami           = "ami-05576a079321f21f8"
   instance_type = "t3.small"
-  subnet_id = aws_subnet.private_subnets["private_subnet_1"].id
+  subnet_id = aws_subnet.public_subnets["public_subnet_1"].id
   vpc_security_group_ids = [aws_security_group.terraform_sg.id]
-  associate_public_ip_address = "false"
+  associate_public_ip_address = "true"
   key_name = aws_key_pair.public_key.key_name
   user_data = <<-EOL
   #!/bin/bash -xe
@@ -237,6 +237,31 @@ resource "aws_instance" "app_server" {
   cd backend
   npm install
   npm run start
+
+  sudo su
+  cd /DevOpsProj2/backend
+  touch .env
+  cat >> .env << EOF
+  DB_HOST = "database-2.cohfrpt69poq.us-east-1.rds.amazonaws.com"
+  DB_PORT = 5432
+  DB_USER = "postgres"
+  DB_PASSWORD = "19cPwuh6uCofh17yevaD"
+  DB_NAME = "test_db_pje"
+  SSL_BOOL = 0
+  EOF
+
+  cd /var/lib/cloud/scripts/per-boot/
+  chmod +x script.sh
+  cat >> script.sh << EOF
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+  export NVM_DIR="$HOME/.nvm"
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  nvm install --lts
+  cd /DevOpsProj2/backend
+  git pull
+  npm install
+  npm run start
+  EOF
 
   EOL
 #commented out provisioner block. Using user data for now.
@@ -271,6 +296,37 @@ resource "aws_instance" "app_server" {
   }
 }
 
+# resource "aws_instance" "app_server2" {
+#   ami           = "ami-05576a079321f21f8"
+#   instance_type = "t3.small"
+#   subnet_id = aws_subnet.private_subnets["private_subnet_2"].id
+#   vpc_security_group_ids = [aws_security_group.terraform_sg.id]
+#   associate_public_ip_address = "false"
+#   key_name = aws_key_pair.public_key.key_name
+#   user_data = <<-EOL
+#   #!/bin/bash -xe
+
+#   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+#   export NVM_DIR="$HOME/.nvm"
+#   [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+#   nvm install --lts
+#   node -e "console.log('Running Node.js ' + process.version)"
+#   sudo yum install git -y
+#   git clone --no-checkout https://github.com/PaulEdson/DevOpsProj2
+#   cd ./DevOpsProj2
+#   git sparse-checkout init
+#   git sparse-checkout set backend
+#   git checkout master
+#   cd backend
+#   npm install
+#   npm run start
+
+#   EOL
+# tags = {
+#     Name = "app-server2-pje"
+#     BatchID = "DevOps"
+#   }
+# }
 #--------------------Load-Balancer------------------------------
 resource "aws_lb" "server_lb" {
   name               = "proj2-lb-pje"
@@ -310,6 +366,12 @@ resource "aws_lb_target_group_attachment" "server_1" {
   target_id        = aws_instance.app_server.id #just one instance as of now, easily scalable
   port             = 3000
 }
+
+# resource "aws_lb_target_group_attachment" "server_2" {
+#   target_group_arn = aws_lb_target_group.server_lb_tg.arn
+#   target_id        = aws_instance.app_server2.id #just one instance as of now, easily scalable
+#   port             = 3000
+# }
 
 #takes http traffic and forwards to the server target group
 resource "aws_lb_listener" "server_1_listener" {
