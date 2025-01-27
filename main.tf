@@ -239,6 +239,7 @@ resource "aws_instance" "app_server" {
   npm run start
 
   EOL
+#commented out provisioner block. Using user data for now.
 #   connection {
 #     user = "ec2-user"
 #     private_key = tls_private_key.rsa4096.private_key_pem
