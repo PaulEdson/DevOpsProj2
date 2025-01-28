@@ -1,15 +1,13 @@
-<!-- edited here --------------------------------------------------------------------------------------------------------------------->
+<!-- a input field: uses pressing enter as the submit trigger -->
 <html>
-  <form class="k-form" (ngSubmit)="myFunc(inputText)">
+  <form class="k-form" (ngSubmit)="sendInputData(inputText)">
 
     <input type="text" [(ngModel)]="inputText" name="inputText"  placeholder="inputText">
     
   </form>
-  <!-- <input id="inputText" type="text">
-  <button (click)="myFunc({inputText})">send to database</button> -->
+  <!-- reads the database and prints to a list -->
   <li *ngFor="let item of message;">
     {{item.stringValue}}
   </li>
 </html>
-<!-- <h1>{{ this.message }}</h1> -->
       

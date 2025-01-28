@@ -17,15 +17,8 @@ export class AppComponent implements OnInit {
   url: any;
   inputText:any
   constructor(private apiService: ApiService) { };
+  //on page access retrieves all data currently in the database
   ngOnInit() {
-      // this.apiService.getUrl().subscribe((data =>{
-      //   console.log(data)
-      //   this.url = data
-      // }))
-      // this.apiService.getMessage(this.url).subscribe(data => {
-      //     this.message = data;
-      //     console.log(this.message)
-      // });
       this.apiService.getUrl().subscribe((url =>{
         console.log(url)
         this.url = url
@@ -34,22 +27,18 @@ export class AppComponent implements OnInit {
           this.message = data
           console.log(this.message)
         })
-        // let myString: StringData
-        // myString = {
-        //   stringId: 1000,
-        //   stringValue: 'automated Value'
-        // }
-        // this.apiService.addHero(myString, url).subscribe();
       }))
   }
-  myFunc(inputText:any){
+  //wraps data and passes it to the apiService
+  sendInputData(inputText:any){
     console.log(inputText);
     let myString: StringData
     myString = {
       stringId:1000,
       stringValue: inputText
     }
-    this.apiService.addHero(myString, this.url).subscribe(inputText =>{
+    //sends data to the backend via http post request
+    this.apiService.addData(myString, this.url).subscribe(inputText =>{
       this.apiService.getMessage(this.url).subscribe(data => {
         this.message = data
         console.log(this.message)
