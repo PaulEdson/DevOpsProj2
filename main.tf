@@ -522,8 +522,8 @@ resource "aws_s3_object" "index" {
 
 resource "aws_s3_object" "main" {
   bucket = aws_s3_bucket.s3-bucket.id
-  key    = "main-LHFWLPVM.js"
-  source = "./frontend/dist/frontend/browser/main-LHFWLPVM.js"
+  key    = "main-GHONYHFS.js"
+  source = "./frontend/dist/frontend/browser/main-GHONYHFS.js"
   content_type = "application/javascript"
 }
 

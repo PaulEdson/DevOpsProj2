@@ -37,7 +37,7 @@ or
 
 * aws configure sso
 
-To reproduce this demo app, run the following commands in the directory containin main.tf after downloading terraform
+To reproduce this demo app, run the following commands in the directory containing main.tf after downloading terraform
 
 * terraform init (initializes terraform and downloads required providors)
 * terraform validate (optional, confirms terraform file has no errors)
@@ -45,7 +45,7 @@ To reproduce this demo app, run the following commands in the directory containi
 * terraform apply (will ask for confirmation after displaying terraform plan)
 
 After running terraform apply and confirming the build plan, terraform will build out the resources needed and begin hosting the sample website.
-Go to the S3 DNS returned to view the website, which should just be a single form field. Wait a few minutes for all the resources to finish 
+Go to the S3 endpoint given in the terraform ouput to view the website, which should just be a single form field. Wait a few minutes for all the resources to finish 
 spinning up, then try entering text into the field and pressing enter.
 The text you entered should appear below the field. This text is pulled from the database, and will not disappear after refreshing or switching machines.
 
@@ -53,4 +53,4 @@ After the app is no longer needed run:
 
 * terraform destroy
 
-to get delete the app off of AWS and stop incurring charges on the account hosting the site.
+to delete the app off of AWS and stop incurring charges on the account hosting the site.
