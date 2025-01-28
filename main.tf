@@ -236,6 +236,7 @@ resource "aws_key_pair" "public_key" {
 #creating a EC2 instance and cloning our Nest API onto it so that it can run our backend
 #Running a script through user data
 #adding a boot script through user data as well so that when the instance is stopped and started it still works
+#for each may be added in future to reduce repeated code
 resource "aws_instance" "app_server" {
   depends_on = [aws_db_instance.default]
   ami           = "ami-05576a079321f21f8"
@@ -246,6 +247,8 @@ resource "aws_instance" "app_server" {
   associate_public_ip_address = "false"
   key_name = aws_key_pair.public_key.key_name
   #user data is executed when instance is initialized
+  #database password is hardcoded here, should be ok for now 
+  #the database is not accessible outside of security group, and not set to publicly accessible
   user_data = <<-EOL
   #!/bin/bash -xe
 
@@ -503,7 +506,7 @@ resource "aws_s3_bucket_policy" "allow_public_access" {
   depends_on = [ aws_s3_bucket_public_access_block.example ]
   bucket = aws_s3_bucket.s3-bucket.id
   #pulling 
-  policy = data.aws_iam_policy_document.allow_public_access.json
+  policy = data.aws_iam_policy_document.allow_access_from_another_account.json
 }
 
 
@@ -585,7 +588,9 @@ resource "aws_db_instance" "default" {
     BatchID = "DevOps"
   }
 }
-
+output "S3_endpoint" {
+  value = aws_s3_bucket_website_configuration.example.website_endpoint
+}
 # resource "local_file" "database_adress" {
 #     content  = aws_db_instance.default.address
 #     filename = "public_lb_dns.txt"
