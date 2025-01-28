@@ -11,6 +11,8 @@ const fs = require('fs')
 @Module({
   imports: [
     ConfigModule.forRoot(),
+    //env file that these are read from is added by the terraform file
+    //will not work with localhost unless env file is added with connection parameters for a postgres database
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST,
@@ -18,13 +20,7 @@ const fs = require('fs')
       username: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      // ssl: Boolean(Number(0)),
-      // type: 'postgres',
-      // host: 'terraform-20250127210856115000000003.cnw80qoe8meq.us-east-1.rds.amazonaws.com',
-      // port: 5432,
-      // username: 'postgres',
-      // password: 'y1ew1Fx3W0QwwGSD8EyQ',
-      // database: 'private_db_pje',
+      //needs ssl certificate bundle from amazon to communicate with AWS database
       ssl: { 
         rejectUnauthorized: true,
         ca: fs.readFileSync('./us-east-1-bundle.pem').toString(), 

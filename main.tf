@@ -133,7 +133,7 @@ resource "aws_route_table_association" "private_routes" {
     subnet_id = each.value.id
 }
 #-----------------VPC-Security_groups-----------------------------
-#open security group
+#private security group
 resource "aws_security_group" "terraform_sg" {
   name        = "terraform_sg"
   description = "Allow all needed traffic within security group"
@@ -144,17 +144,8 @@ resource "aws_security_group" "terraform_sg" {
   }
 }
 
-# resource "aws_vpc_security_group_ingress_rule" "allow_tls_ipv4" {
-#   security_group_id = aws_security_group.terraform_sg.id
-#   cidr_ipv4         = "0.0.0.0/0"
-#   from_port         = 443
-#   ip_protocol       = "tcp"
-#   to_port           = 443
-# }
-
 resource "aws_vpc_security_group_ingress_rule" "allow_custom_port" {
   security_group_id = aws_security_group.terraform_sg.id
-  #cidr_ipv4         = "0.0.0.0/0"
   referenced_security_group_id = aws_security_group.terraform_sg.id
   from_port         = 3000
   ip_protocol       = "tcp"
@@ -163,7 +154,6 @@ resource "aws_vpc_security_group_ingress_rule" "allow_custom_port" {
 
 resource "aws_vpc_security_group_ingress_rule" "allow_http_ipv4" {
   security_group_id = aws_security_group.terraform_sg.id
-  #cidr_ipv4         = "0.0.0.0/0"
   referenced_security_group_id = aws_security_group.terraform_sg.id
   from_port         = 80
   ip_protocol       = "tcp"
@@ -194,6 +184,7 @@ resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
   ip_protocol       = "-1" # semantically equivalent to all ports
 }
 
+#security group open to the public
 #assigned to load balancer to allow communication with public internet
 resource "aws_security_group" "public_access_sg" {
   name        = "public_access_sg"
@@ -249,10 +240,12 @@ resource "aws_instance" "app_server" {
   depends_on = [aws_db_instance.default]
   ami           = "ami-05576a079321f21f8"
   instance_type = "t3.small"
+  #EC2 instances are kept in private subnets, communicate through nat gateway and load balancer
   subnet_id = aws_subnet.private_subnets["private_subnet_1"].id
   vpc_security_group_ids = [aws_security_group.terraform_sg.id]
   associate_public_ip_address = "false"
   key_name = aws_key_pair.public_key.key_name
+  #user data is executed when instance is initialized
   user_data = <<-EOL
   #!/bin/bash -xe
 
@@ -331,7 +324,7 @@ resource "aws_instance" "app_server" {
 
 
 # user data could be put into its own file to not repeat the script file for each EC2 instance
-#inserting terraform variables made this difficult, so for two instances we can just repeat the 
+#inserting terraform variables made this difficult, so for now two instances we can just repeat the 
 #user input script
 resource "aws_instance" "app_server2" {
   depends_on = [aws_db_instance.default]
@@ -389,7 +382,10 @@ tags = {
     BatchID = "DevOps"
   }
 }
+
 #--------------------Load-Balancer------------------------------
+#static frontend will be pointed to load balancer dns to communicate with any
+#number of EC2 instances hosting backend
 resource "aws_lb" "server_lb" {
   name               = "proj2-lb-pje"
   internal           = false
@@ -398,12 +394,6 @@ resource "aws_lb" "server_lb" {
   subnets            = [for subnet in aws_subnet.public_subnets : subnet.id]
 
   enable_deletion_protection = false
-
-  # access_logs {
-  #   bucket  = aws_s3_bucket.lb_logs.id
-  #   prefix  = "test-lb"
-  #   enabled = true
-  # }
 
   tags = {
     BatchID = "DevOps"
@@ -457,7 +447,7 @@ resource "local_file" "load_balancer_dns" {
 }
 
 
-#----------------S3---------------
+#----------------S3-Bucket----------------------------------------
 #frontend will be served through this public s3 bucket
 resource "aws_s3_bucket" "s3-bucket" {
   bucket = "frontend-pje"
@@ -509,14 +499,17 @@ resource "aws_s3_bucket_public_access_block" "example" {
 }
 
 #assigning access block to our s3 bucket
-resource "aws_s3_bucket_policy" "allow_access_from_another_account" {
+resource "aws_s3_bucket_policy" "allow_public_access" {
   depends_on = [ aws_s3_bucket_public_access_block.example ]
   bucket = aws_s3_bucket.s3-bucket.id
-  policy = data.aws_iam_policy_document.allow_access_from_another_account.json
+  #pulling 
+  policy = data.aws_iam_policy_document.allow_public_access.json
 }
 
 
 #--------------------------project frontend files-----------------------
+#retrieves files from created dist folder in frontend files
+#as of now needs to be manually changed every time ng build changes file names
 resource "aws_s3_object" "index" {
   bucket = aws_s3_bucket.s3-bucket.id
   key    = "index.html"
@@ -526,8 +519,8 @@ resource "aws_s3_object" "index" {
 
 resource "aws_s3_object" "main" {
   bucket = aws_s3_bucket.s3-bucket.id
-  key    = "main-2Z4MT3N2.js"
-  source = "./frontend/dist/frontend/browser/main-2Z4MT3N2.js"
+  key    = "main-LHFWLPVM.js"
+  source = "./frontend/dist/frontend/browser/main-LHFWLPVM.js"
   content_type = "application/javascript"
 }
 
@@ -552,6 +545,7 @@ resource "aws_s3_object" "icon" {
   content_type = "image/x-icon"
 }
 
+#pushes txt file with generated load balancer DNS into the s3 folder to be read by the app
 resource "aws_s3_object" "url" {
   depends_on = [local_file.load_balancer_dns]
   bucket = aws_s3_bucket.s3-bucket.id
@@ -561,7 +555,6 @@ resource "aws_s3_object" "url" {
 }
 
 #-------------Database------------------------------
-
 resource "aws_db_subnet_group" "default" {
   
   name       = "db-subnet-pje" 
@@ -573,6 +566,7 @@ resource "aws_db_subnet_group" "default" {
   }
 }
 
+#db is kept on private subnets and is set to not be publicly accessible
 resource "aws_db_instance" "default" {
   depends_on = [ aws_db_subnet_group.default ]
   allocated_storage    = 10
@@ -592,7 +586,7 @@ resource "aws_db_instance" "default" {
   }
 }
 
-resource "local_file" "database_adress" {
-    content  = aws_db_instance.default.address
-    filename = "public_lb_dns.txt"
-}
+# resource "local_file" "database_adress" {
+#     content  = aws_db_instance.default.address
+#     filename = "public_lb_dns.txt"
+# }

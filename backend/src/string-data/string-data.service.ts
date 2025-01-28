@@ -7,9 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 @Injectable()
 export class StringDataService {
   constructor(@InjectRepository(stringdatum) private repo: Repository<stringdatum>){}
-  // create(createStringDatumDto: CreateStringDatumDto) {
-  //   return 'This action adds a new stringDatum';
-  // }
+
   async create(createStringDto: stringdatum): Promise<stringdatum> {
     await this.repo.exists({where:{stringId: createStringDto.stringId}}).then(exists => {
       if (exists){
@@ -29,10 +27,12 @@ export class StringDataService {
     return await this.repo.findOneOrFail({where:{stringId:id}});
   }
 
+  //not implemented as the sample app just needs to create and read data from database
   update(id: number, updateStringDatumDto: UpdateStringDatumDto) {
     return `This action updates a #${id} stringDatum`;
   }
 
+  //not implemented as the sample app just needs to create and read data from database
   remove(id: number) {
     return `This action removes a #${id} stringDatum`;
   }

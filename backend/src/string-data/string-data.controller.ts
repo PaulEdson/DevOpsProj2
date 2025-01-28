@@ -4,14 +4,12 @@ import { CreateStringDatumDto } from './dto/create-string-datum.dto';
 import { UpdateStringDatumDto } from './dto/update-string-datum.dto';
 import { stringdatum } from './entities/string-datum.entity';
 
+//string-data controller for add string data to the database
 @Controller('string-data')
 export class StringDataController {
   constructor(private readonly stringDataService: StringDataService) {}
 
   @Post()
-  // create(@Body() createStringDatumDto: CreateStringDatumDto) {
-  //   return this.stringDataService.create(createStringDatumDto);
-  // }
   create(@Body() createStringDatum: stringdatum) {
     return this.stringDataService.create(createStringDatum);
   }
@@ -28,6 +26,7 @@ export class StringDataController {
     return this.stringDataService.findOne(id);
   }
 
+  //patch and delete are not fully implemented as they are needed for the sample app
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateStringDatumDto: UpdateStringDatumDto) {
     return this.stringDataService.update(+id, updateStringDatumDto);
