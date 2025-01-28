@@ -132,11 +132,11 @@ resource "aws_route_table_association" "private_routes" {
     for_each = aws_subnet.private_subnets
     subnet_id = each.value.id
 }
-
+#-----------------VPC-Security_groups-----------------------------
 #open security group
 resource "aws_security_group" "terraform_sg" {
   name        = "terraform_sg"
-  description = "Allow all inbound and outbound traffic"
+  description = "Allow all needed traffic within security group"
   vpc_id      = aws_vpc.proj2-pje.id
 
   tags = {
@@ -144,18 +144,18 @@ resource "aws_security_group" "terraform_sg" {
   }
 }
 
-#-----------------VPC-Security_group-----------------------------
-resource "aws_vpc_security_group_ingress_rule" "allow_tls_ipv4" {
-  security_group_id = aws_security_group.terraform_sg.id
-  cidr_ipv4         = "0.0.0.0/0"
-  from_port         = 443
-  ip_protocol       = "tcp"
-  to_port           = 443
-}
+# resource "aws_vpc_security_group_ingress_rule" "allow_tls_ipv4" {
+#   security_group_id = aws_security_group.terraform_sg.id
+#   cidr_ipv4         = "0.0.0.0/0"
+#   from_port         = 443
+#   ip_protocol       = "tcp"
+#   to_port           = 443
+# }
 
 resource "aws_vpc_security_group_ingress_rule" "allow_custom_port" {
   security_group_id = aws_security_group.terraform_sg.id
-  cidr_ipv4         = "0.0.0.0/0"
+  #cidr_ipv4         = "0.0.0.0/0"
+  referenced_security_group_id = aws_security_group.terraform_sg.id
   from_port         = 3000
   ip_protocol       = "tcp"
   to_port           = 3000
@@ -163,7 +163,8 @@ resource "aws_vpc_security_group_ingress_rule" "allow_custom_port" {
 
 resource "aws_vpc_security_group_ingress_rule" "allow_http_ipv4" {
   security_group_id = aws_security_group.terraform_sg.id
-  cidr_ipv4         = "0.0.0.0/0"
+  #cidr_ipv4         = "0.0.0.0/0"
+  referenced_security_group_id = aws_security_group.terraform_sg.id
   from_port         = 80
   ip_protocol       = "tcp"
   to_port           = 80
@@ -171,7 +172,8 @@ resource "aws_vpc_security_group_ingress_rule" "allow_http_ipv4" {
 
 resource "aws_vpc_security_group_ingress_rule" "allow_ssh_ipv4" {
   security_group_id = aws_security_group.terraform_sg.id
-  cidr_ipv4         = "0.0.0.0/0"
+  #cidr_ipv4         = "0.0.0.0/0"
+  referenced_security_group_id = aws_security_group.terraform_sg.id
   from_port         = 22
   ip_protocol       = "tcp"
   to_port           = 22
@@ -185,8 +187,35 @@ resource "aws_vpc_security_group_ingress_rule" "allow_sg_traffic" {
   referenced_security_group_id = aws_security_group.terraform_sg.id
 }
 
+#allow all outbound traffic
 resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
   security_group_id = aws_security_group.terraform_sg.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "-1" # semantically equivalent to all ports
+}
+
+#assigned to load balancer to allow communication with public internet
+resource "aws_security_group" "public_access_sg" {
+  name        = "public_access_sg"
+  description = "Allow http traffic from internet"
+  vpc_id      = aws_vpc.proj2-pje.id
+
+  tags = {
+    Name = "terraform-sg-pje"
+  }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "allow_http_public" {
+  security_group_id = aws_security_group.public_access_sg.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = 80
+  ip_protocol       = "tcp"
+  to_port           = 80
+}
+
+#allow all outbound traffic
+resource "aws_vpc_security_group_egress_rule" "allow_all_outbound_public_sg" {
+  security_group_id = aws_security_group.public_access_sg.id
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1" # semantically equivalent to all ports
 }
@@ -213,12 +242,16 @@ resource "aws_key_pair" "public_key" {
     }
 }
 
+#creating a EC2 instance and cloning our Nest API onto it so that it can run our backend
+#Running a script through user data
+#adding a boot script through user data as well so that when the instance is stopped and started it still works
 resource "aws_instance" "app_server" {
+  depends_on = [aws_db_instance.default]
   ami           = "ami-05576a079321f21f8"
   instance_type = "t3.small"
-  subnet_id = aws_subnet.public_subnets["public_subnet_1"].id
+  subnet_id = aws_subnet.private_subnets["private_subnet_1"].id
   vpc_security_group_ids = [aws_security_group.terraform_sg.id]
-  associate_public_ip_address = "true"
+  associate_public_ip_address = "false"
   key_name = aws_key_pair.public_key.key_name
   user_data = <<-EOL
   #!/bin/bash -xe
@@ -236,22 +269,8 @@ resource "aws_instance" "app_server" {
   git checkout master
   cd backend
   npm install
-  npm run start
-
-  sudo su
-  cd /DevOpsProj2/backend
-  touch .env
-  cat >> .env << EOF
-  DB_HOST = "database-2.cohfrpt69poq.us-east-1.rds.amazonaws.com"
-  DB_PORT = 5432
-  DB_USER = "postgres"
-  DB_PASSWORD = "19cPwuh6uCofh17yevaD"
-  DB_NAME = "test_db_pje"
-  SSL_BOOL = 0
-  EOF
 
   cd /var/lib/cloud/scripts/per-boot/
-  chmod +x script.sh
   cat >> script.sh << EOF
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
   export NVM_DIR="$HOME/.nvm"
@@ -262,8 +281,22 @@ resource "aws_instance" "app_server" {
   npm install
   npm run start
   EOF
+  chmod +x script.sh
+
+  cd /DevOpsProj2/backend
+  touch .env
+  cat >> .env << EOF
+  DB_HOST = "${aws_db_instance.default.address}"
+  DB_PORT = 5432
+  DB_USER = "postgres"
+  DB_PASSWORD = "y1ew1Fx3W0QwwGSD8EyQ"
+  DB_NAME = "private_db_pje"
+  SSL_BOOL = 0
+  EOF
+  npm run start
 
   EOL
+  
 #commented out provisioner block. Using user data for now.
 #   connection {
 #     user = "ec2-user"
@@ -296,43 +329,72 @@ resource "aws_instance" "app_server" {
   }
 }
 
-# resource "aws_instance" "app_server2" {
-#   ami           = "ami-05576a079321f21f8"
-#   instance_type = "t3.small"
-#   subnet_id = aws_subnet.private_subnets["private_subnet_2"].id
-#   vpc_security_group_ids = [aws_security_group.terraform_sg.id]
-#   associate_public_ip_address = "false"
-#   key_name = aws_key_pair.public_key.key_name
-#   user_data = <<-EOL
-#   #!/bin/bash -xe
 
-#   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-#   export NVM_DIR="$HOME/.nvm"
-#   [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-#   nvm install --lts
-#   node -e "console.log('Running Node.js ' + process.version)"
-#   sudo yum install git -y
-#   git clone --no-checkout https://github.com/PaulEdson/DevOpsProj2
-#   cd ./DevOpsProj2
-#   git sparse-checkout init
-#   git sparse-checkout set backend
-#   git checkout master
-#   cd backend
-#   npm install
-#   npm run start
+# user data could be put into its own file to not repeat the script file for each EC2 instance
+#inserting terraform variables made this difficult, so for two instances we can just repeat the 
+#user input script
+resource "aws_instance" "app_server2" {
+  depends_on = [aws_db_instance.default]
+  ami           = "ami-05576a079321f21f8"
+  instance_type = "t3.small"
+  subnet_id = aws_subnet.private_subnets["private_subnet_2"].id
+  vpc_security_group_ids = [aws_security_group.terraform_sg.id]
+  associate_public_ip_address = "false"
+  key_name = aws_key_pair.public_key.key_name
+  user_data = <<-EOL
+  #!/bin/bash -xe
 
-#   EOL
-# tags = {
-#     Name = "app-server2-pje"
-#     BatchID = "DevOps"
-#   }
-# }
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+  export NVM_DIR="$HOME/.nvm"
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  nvm install --lts
+  node -e "console.log('Running Node.js ' + process.version)"
+  sudo yum install git -y
+  git clone --no-checkout https://github.com/PaulEdson/DevOpsProj2
+  cd ./DevOpsProj2
+  git sparse-checkout init
+  git sparse-checkout set backend
+  git checkout master
+  cd backend
+  npm install
+
+  cd /var/lib/cloud/scripts/per-boot/
+  cat >> script.sh << EOF
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+  export NVM_DIR="$HOME/.nvm"
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  nvm install --lts
+  cd /DevOpsProj2/backend
+  git pull
+  npm install
+  npm run start
+  EOF
+  chmod +x script.sh
+
+  cd /DevOpsProj2/backend
+  touch .env
+  cat >> .env << EOF
+  DB_HOST = "${aws_db_instance.default.address}"
+  DB_PORT = 5432
+  DB_USER = "postgres"
+  DB_PASSWORD = "y1ew1Fx3W0QwwGSD8EyQ"
+  DB_NAME = "private_db_pje"
+  SSL_BOOL = 0
+  EOF
+  npm run start
+
+  EOL
+tags = {
+    Name = "app-server2-pje"
+    BatchID = "DevOps"
+  }
+}
 #--------------------Load-Balancer------------------------------
 resource "aws_lb" "server_lb" {
   name               = "proj2-lb-pje"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.terraform_sg.id]
+  security_groups    = [aws_security_group.terraform_sg.id, aws_security_group.public_access_sg.id]
   subnets            = [for subnet in aws_subnet.public_subnets : subnet.id]
 
   enable_deletion_protection = false
@@ -363,15 +425,15 @@ resource "aws_lb_target_group" "server_lb_tg" {
 #target group attachment is required to point the created target group to specific instances
 resource "aws_lb_target_group_attachment" "server_1" {
   target_group_arn = aws_lb_target_group.server_lb_tg.arn
-  target_id        = aws_instance.app_server.id #just one instance as of now, easily scalable
+  target_id        = aws_instance.app_server.id 
   port             = 3000
 }
 
-# resource "aws_lb_target_group_attachment" "server_2" {
-#   target_group_arn = aws_lb_target_group.server_lb_tg.arn
-#   target_id        = aws_instance.app_server2.id #just one instance as of now, easily scalable
-#   port             = 3000
-# }
+resource "aws_lb_target_group_attachment" "server_2" {
+  target_group_arn = aws_lb_target_group.server_lb_tg.arn
+  target_id        = aws_instance.app_server2.id 
+  port             = 3000
+}
 
 #takes http traffic and forwards to the server target group
 resource "aws_lb_listener" "server_1_listener" {
@@ -458,35 +520,35 @@ resource "aws_s3_bucket_policy" "allow_access_from_another_account" {
 resource "aws_s3_object" "index" {
   bucket = aws_s3_bucket.s3-bucket.id
   key    = "index.html"
-  source = "d:/Code/DevOpsProj2/frontend/dist/frontend/browser/index.html"
+  source = "./frontend/dist/frontend/browser/index.html"
   content_type = "text/html"
 }
 
 resource "aws_s3_object" "main" {
   bucket = aws_s3_bucket.s3-bucket.id
   key    = "main-2Z4MT3N2.js"
-  source = "d:/Code/DevOpsProj2/frontend/dist/frontend/browser/main-2Z4MT3N2.js"
+  source = "./frontend/dist/frontend/browser/main-2Z4MT3N2.js"
   content_type = "application/javascript"
 }
 
 resource "aws_s3_object" "polyfills" {
   bucket = aws_s3_bucket.s3-bucket.id
   key    = "polyfills-FFHMD2TL.js"
-  source = "d:/Code/DevOpsProj2/frontend/dist/frontend/browser/polyfills-FFHMD2TL.js"
+  source = "./frontend/dist/frontend/browser/polyfills-FFHMD2TL.js"
   content_type = "application/javascript"
 }
 
 resource "aws_s3_object" "styles" {
   bucket = aws_s3_bucket.s3-bucket.id
   key    = "styles-5INURTSO.css"
-  source = "d:/Code/DevOpsProj2/frontend/dist/frontend/browser/styles-5INURTSO.css"
+  source = "./frontend/dist/frontend/browser/styles-5INURTSO.css"
   content_type = "text/html"
 }
 
 resource "aws_s3_object" "icon" {
   bucket = aws_s3_bucket.s3-bucket.id
   key    = "favicon.ico"
-  source = "d:/Code/DevOpsProj2/frontend/dist/frontend/browser/favicon.ico"
+  source = "./frontend/dist/frontend/browser/favicon.ico"
   content_type = "image/x-icon"
 }
 
@@ -494,7 +556,7 @@ resource "aws_s3_object" "url" {
   depends_on = [local_file.load_balancer_dns]
   bucket = aws_s3_bucket.s3-bucket.id
   key    = "url.txt"
-  source = "d:/Code/DevOpsProj2/public_lb_dns.txt"
+  source = "./public_lb_dns.txt"
   content_type = "text/html"
 }
 
@@ -520,6 +582,7 @@ resource "aws_db_instance" "default" {
   instance_class       = "db.t3.micro"
   username             = "postgres"
   password             = "y1ew1Fx3W0QwwGSD8EyQ"
+  //identifier = "terraform-db-pje"
   vpc_security_group_ids = [aws_security_group.terraform_sg.id]
   db_subnet_group_name = aws_db_subnet_group.default.id
   skip_final_snapshot  = true
@@ -527,4 +590,9 @@ resource "aws_db_instance" "default" {
   tags = {
     BatchID = "DevOps"
   }
+}
+
+resource "local_file" "database_adress" {
+    content  = aws_db_instance.default.address
+    filename = "public_lb_dns.txt"
 }
